@@ -126,3 +126,9 @@ maintained · verified 2026-09-30
 maintained · verified 2026-10-01
 ---
 maintained · verified 2026-10-02
+
+## Architecture
+
+- `server.js` holds all in-memory state: rooms, users, typing indicators. Nothing touches disk.
+- `test/smoke.js` forks the server on a test port and drives two socket.io clients through join/message/rename/disconnect flows in CI.
+- Messages are relayed, never stored — reload and history is gone, by design.
