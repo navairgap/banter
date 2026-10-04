@@ -132,3 +132,7 @@ maintained · verified 2026-10-02
 - `server.js` holds all in-memory state: rooms, users, typing indicators. Nothing touches disk.
 - `test/smoke.js` forks the server on a test port and drives two socket.io clients through join/message/rename/disconnect flows in CI.
 - Messages are relayed, never stored — reload and history is gone, by design.
+
+## Scaling limits
+
+Everything lives in process memory: expect comfortable performance to a few thousand concurrent sockets per instance. Beyond that, shard by room across instances — clients in the same room must share an instance. No persistence means restart = empty rooms, which is the point.
