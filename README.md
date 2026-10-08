@@ -136,3 +136,10 @@ maintained · verified 2026-10-02
 ## Scaling limits
 
 Everything lives in process memory: expect comfortable performance to a few thousand concurrent sockets per instance. Beyond that, shard by room across instances — clients in the same room must share an instance. No persistence means restart = empty rooms, which is the point.
+
+
+## Operating notes
+
+- single instance per room shard; scale by sharding rooms across processes
+- no persistence is a feature: restarts clear state cleanly
+- put it behind your reverse proxy of choice for TLS
