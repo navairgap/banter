@@ -148,3 +148,8 @@ Everything lives in process memory: expect comfortable performance to a few thou
 ## Comparison
 
 vs matrix/synapse: banter has no federation, no accounts, no database — and is ~200 lines you can read. vs a discord bot: it's a protocol, not a platform. pick it when zero-state matters more than features.
+
+
+## Troubleshooting
+
+rooms empty after restart? by design — no persistence. client connected but messages not arriving? check the room name matches exactly; typos make new rooms, silently.
