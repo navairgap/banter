@@ -153,3 +153,7 @@ vs matrix/synapse: banter has no federation, no accounts, no database — and is
 ## Troubleshooting
 
 rooms empty after restart? by design — no persistence. client connected but messages not arriving? check the room name matches exactly; typos make new rooms, silently.
+
+## Versioning
+
+no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
