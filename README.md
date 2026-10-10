@@ -157,3 +157,7 @@ rooms empty after restart? by design — no persistence. client connected but me
 ## Versioning
 
 no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
+
+## Versioning
+
+no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
