@@ -161,3 +161,7 @@ no semver — `main` is always runnable and the protocol is stable. tags mark pr
 ## Versioning
 
 no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
+
+## Message envelope
+
+every frame is one json object: `{"type":"msg","room":"lobby","user":"alice","payload":"hello"}`. types: join, leave, msg, typing, users. unknown types are ignored, never fatal — clients may drift a version ahead of the server.
