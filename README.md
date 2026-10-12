@@ -165,3 +165,7 @@ no semver — `main` is always runnable and the protocol is stable. tags mark pr
 ## Message envelope
 
 every frame is one json object: `{"type":"msg","room":"lobby","user":"alice","payload":"hello"}`. types: join, leave, msg, typing, users. unknown types are ignored, never fatal — clients may drift a version ahead of the server.
+
+## Load notes
+
+one node process comfortably holds a few thousand concurrent sockets; beyond that, shard by room. rough local benchmark: `node bench.js --clients 500` spawns 500 bots and reports round-trip percentiles.
