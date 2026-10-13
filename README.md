@@ -173,3 +173,7 @@ one node process comfortably holds a few thousand concurrent sockets; beyond tha
 ## Non-goals
 
 no end-to-end encryption — the threat model assumes you run the server you trust; no history, no presence persistence, no typing replay. features that require state stay out by charter.
+
+## Signals
+
+SIGTERM drains: the server stops accepting, finishes in-flight relays, exits 0. SIGKILL mid-relay is invisible to clients — a reconnect covers it.
