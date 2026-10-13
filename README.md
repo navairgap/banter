@@ -169,3 +169,7 @@ every frame is one json object: `{"type":"msg","room":"lobby","user":"alice","pa
 ## Load notes
 
 one node process comfortably holds a few thousand concurrent sockets; beyond that, shard by room. rough local benchmark: `node bench.js --clients 500` spawns 500 bots and reports round-trip percentiles.
+
+## Non-goals
+
+no end-to-end encryption — the threat model assumes you run the server you trust; no history, no presence persistence, no typing replay. features that require state stay out by charter.
