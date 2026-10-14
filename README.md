@@ -177,3 +177,9 @@ no end-to-end encryption — the threat model assumes you run the server you tru
 ## Signals
 
 SIGTERM drains: the server stops accepting, finishes in-flight relays, exits 0. SIGKILL mid-relay is invisible to clients — a reconnect covers it.
+
+## FAQ
+
+**why no end-to-end encryption?** the threat model assumes you operate the server you trust — E2E would protect messages from the server itself, which contradicts the design. for that model, use matrix.
+
+**why is there still no message history?** because 'no history' is the feature — it's what makes the server disposable.
