@@ -183,3 +183,7 @@ SIGTERM drains: the server stops accepting, finishes in-flight relays, exits 0. 
 **why no end-to-end encryption?** the threat model assumes you operate the server you trust — E2E would protect messages from the server itself, which contradicts the design. for that model, use matrix.
 
 **why is there still no message history?** because 'no history' is the feature — it's what makes the server disposable.
+
+## Operations
+
+behind nginx: one location block with `proxy_pass http://127.0.0.1:PORT` and the websocket upgrade headers (`Upgrade`, `Connection`) — the client falls back to long-polling without them, so don't skip it.
