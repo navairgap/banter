@@ -43,7 +43,10 @@ const MAX_ROOMS = 100;
 const MESSAGE_WINDOW_MS = 10_000;
 const MAX_MESSAGES_PER_WINDOW = 8;
 const EVENT_WINDOW_MS = 10_000;
-const MAX_TYPING_EVENTS_PER_WINDOW = 20;\nconst MAX_CONNECTIONS_PER_IP = 20;\nconst MAX_CONNECTIONS = 1000;\nconst connectionsByIp = new Map();
+const MAX_TYPING_EVENTS_PER_WINDOW = 20;
+const MAX_CONNECTIONS_PER_IP = 20;
+const MAX_CONNECTIONS = 1000;
+const connectionsByIp = new Map();
 const eventCounts = new Map();
 
 function allowEvent(socketId, event, limit, windowMs = EVENT_WINDOW_MS) {
