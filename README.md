@@ -113,8 +113,8 @@ docs/            ASCII hero animation for this README
 
 - In-memory only — restarting the server empties rooms and user lists
 - No message history — everything is relayed live, nothing is stored
-- Demo-grade moderation — no rate limiting or auth; add them before
-  exposing it to strangers
+- Public chat, not private messaging: anonymous nicknames are not authentication; do not use this for sensitive conversations
+- Abuse controls: per-socket message/event throttles, a 100-room cap, per-IP connection caps, same-origin browser checks, and a 16 KB transport payload limit; distributed deployments still need shared limits at the proxy
 
 ## License
 
