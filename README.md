@@ -187,3 +187,7 @@ SIGTERM drains: the server stops accepting, finishes in-flight relays, exits 0. 
 ## Operations
 
 behind nginx: one location block with `proxy_pass http://127.0.0.1:PORT` and the websocket upgrade headers (`Upgrade`, `Connection`) — the client falls back to long-polling without them, so don't skip it.
+
+## History
+
+the first real websockets project and the first with CI-guarded integration tests. the zero-history design was the constraint that made everything else obvious.
