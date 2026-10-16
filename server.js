@@ -78,6 +78,10 @@ function leaveCurrentRoom(socket) {
   socket.leave(u.room);
   socket.to(u.room).emit("system", { text: `${u.name} left`, time: now() });
   io.to(u.room).emit("users", roomUsers(u.room));
+  if (!["lobby", "tech", "random"].includes(u.room) && roomUsers(u.room).length === 0) {
+    rooms.delete(u.room);
+    io.emit("rooms", [...rooms].sort());
+  }
 }
 
 io.on("connection", (socket) => {
