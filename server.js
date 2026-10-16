@@ -11,7 +11,23 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  // Reject oversized Socket.IO payloads before they reach event handlers.
+  maxHttpBufferSize: 16 * 1024,
+  // Browser clients must be same-origin. Non-browser clients without Origin
+  // remain supported, so this is CSRF hardening rather than authentication.
+  allowRequest: (req, callback) => {
+    const origin = req.headers.origin;
+    if (!origin) return callback(null, true);
+    try {
+      const parsed = new URL(origin);
+      if (parsed.host !== req.headers.host) return callback("origin not allowed", false);
+      return callback(null, true);
+    } catch {
+      return callback("invalid origin", false);
+    }
+  },
+});
 
 // serve only client assets — never server.js, package.json, tests, etc.
 app.use("/styles", express.static(path.join(__dirname, "styles")));
@@ -27,7 +43,7 @@ const MAX_ROOMS = 100;
 const MESSAGE_WINDOW_MS = 10_000;
 const MAX_MESSAGES_PER_WINDOW = 8;
 const EVENT_WINDOW_MS = 10_000;
-const MAX_TYPING_EVENTS_PER_WINDOW = 20;
+const MAX_TYPING_EVENTS_PER_WINDOW = 20;\nconst MAX_CONNECTIONS_PER_IP = 20;\nconst MAX_CONNECTIONS = 1000;\nconst connectionsByIp = new Map();
 const eventCounts = new Map();
 
 function allowEvent(socketId, event, limit, windowMs = EVENT_WINDOW_MS) {
@@ -85,8 +101,21 @@ function leaveCurrentRoom(socket) {
 }
 
 io.on("connection", (socket) => {
+  const ip = socket.handshake.address || "unknown";
+  const ipConnections = connectionsByIp.get(ip) || 0;
+  if (io.engine.clientsCount > MAX_CONNECTIONS || ipConnections >= MAX_CONNECTIONS_PER_IP) {
+    socket.disconnect(true);
+    return;
+  }
+  connectionsByIp.set(ip, ipConnections + 1);
+
   // join a room (also used for switching rooms)
-  socket.on("join", ({ name, room } = {}, ack) => {
+  socket.on("join", (payload = {}, ack) => {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      if (typeof ack === "function") ack({ ok: false, error: "invalid join payload" });
+      return;
+    }
+    const { name, room } = payload;
     if (!allowEvent(socket.id, "join", 10, 60_000)) {
       if (typeof ack === "function") ack({ ok: false, error: "too many join attempts" });
       return;
@@ -152,6 +181,9 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     leaveCurrentRoom(socket);
+    const remaining = Math.max(0, (connectionsByIp.get(ip) || 1) - 1);
+    if (remaining === 0) connectionsByIp.delete(ip);
+    else connectionsByIp.set(ip, remaining);
     for (const key of eventCounts.keys()) {
       if (key.startsWith(socket.id + ":")) eventCounts.delete(key);
     }
