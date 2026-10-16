@@ -23,6 +23,25 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 const MAX_NAME_LEN = 20;
 const MAX_MSG_LEN = 500;
 const MAX_ROOM_LEN = 24;
+const MAX_ROOMS = 100;
+const MESSAGE_WINDOW_MS = 10_000;
+const MAX_MESSAGES_PER_WINDOW = 8;
+const EVENT_WINDOW_MS = 10_000;
+const MAX_TYPING_EVENTS_PER_WINDOW = 20;
+const eventCounts = new Map();
+
+function allowEvent(socketId, event, limit, windowMs = EVENT_WINDOW_MS) {
+  const nowMs = Date.now();
+  const key = socketId + ':' + event;
+  const entry = eventCounts.get(key);
+  if (!entry || nowMs - entry.startedAt >= windowMs) {
+    eventCounts.set(key, { startedAt: nowMs, count: 1 });
+    return true;
+  }
+  if (entry.count >= limit) return false;
+  entry.count += 1;
+  return true;
+}
 
 /** @type {Map<string, {name: string, room: string}>} socket.id -> user */
 const users = new Map();
@@ -64,9 +83,17 @@ function leaveCurrentRoom(socket) {
 io.on("connection", (socket) => {
   // join a room (also used for switching rooms)
   socket.on("join", ({ name, room } = {}, ack) => {
-    leaveCurrentRoom(socket);
+    if (!allowEvent(socket.id, "join", 10, 60_000)) {
+      if (typeof ack === "function") ack({ ok: false, error: "too many join attempts" });
+      return;
+    }
     let n = clean(name, MAX_NAME_LEN) || `guest-${guestSeq++}`;
     let r = clean(room, MAX_ROOM_LEN).toLowerCase() || "lobby";
+    if (!rooms.has(r) && rooms.size >= MAX_ROOMS) {
+      if (typeof ack === "function") ack({ ok: false, error: "room limit reached" });
+      return;
+    }
+    leaveCurrentRoom(socket);
     n = uniqueName(n, r);
     users.set(socket.id, { name: n, room: r });
     socket.join(r);
@@ -79,8 +106,9 @@ io.on("connection", (socket) => {
 
   socket.on("message", (text) => {
     const u = users.get(socket.id);
-    if (!u) return;
-    const t = String(text ?? "").trim();
+    if (!u || !allowEvent(socket.id, "message", MAX_MESSAGES_PER_WINDOW, MESSAGE_WINDOW_MS)) return;
+    if (typeof text !== "string") return;
+    const t = text.trim();
     if (!t || t.length > MAX_MSG_LEN) return;  // reject empty or over-limit
     // text is relayed raw; the client renders it with textContent (XSS-safe)
     io.to(u.room).emit("message", { user: u.name, text: t, time: now() });
@@ -88,21 +116,42 @@ io.on("connection", (socket) => {
 
   socket.on("typing", (isTyping) => {
     const u = users.get(socket.id);
-    if (!u) return;
+    if (!u || !allowEvent(socket.id, "typing", MAX_TYPING_EVENTS_PER_WINDOW)) return;
     socket.to(u.room).emit("typing", { user: u.name, isTyping: !!isTyping });
   });
 
   // create a room and return its name so the client can join it
   socket.on("new room", (room, ack) => {
-    const r = clean(room, MAX_ROOM_LEN).toLowerCase().replace(/ /g, "-");
-    if (r && !rooms.has(r)) {
+    if (!allowEvent(socket.id, "new-room", 5, 60_000)) {
+      if (typeof ack === "function") ack({ ok: false, error: "too many room creation attempts" });
+      return;
+    }
+    if (typeof room !== "string") {
+      if (typeof ack === "function") ack({ ok: false, error: "invalid room name" });
+      return;
+    }
+    const r = clean(room, MAX_ROOM_LEN).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    if (!r) {
+      if (typeof ack === "function") ack({ ok: false, error: "invalid room name" });
+      return;
+    }
+    if (!rooms.has(r)) {
+      if (rooms.size >= MAX_ROOMS) {
+        if (typeof ack === "function") ack({ ok: false, error: "room limit reached" });
+        return;
+      }
       rooms.add(r);
       io.emit("rooms", [...rooms].sort());
     }
-    if (typeof ack === "function") ack({ ok: true, room: r || "lobby" });
+    if (typeof ack === "function") ack({ ok: true, room: r });
   });
 
-  socket.on("disconnect", () => leaveCurrentRoom(socket));
+  socket.on("disconnect", () => {
+    leaveCurrentRoom(socket);
+    for (const key of eventCounts.keys()) {
+      if (key.startsWith(socket.id + ":")) eventCounts.delete(key);
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
