@@ -106,7 +106,7 @@ function leaveCurrentRoom(socket) {
 io.on("connection", (socket) => {
   const ip = socket.handshake.address || "unknown";
   const ipConnections = connectionsByIp.get(ip) || 0;
-  if (io.engine.clientsCount > MAX_CONNECTIONS || ipConnections >= MAX_CONNECTIONS_PER_IP) {
+  if (io.engine.clientsCount >= MAX_CONNECTIONS || ipConnections >= MAX_CONNECTIONS_PER_IP) {
     socket.disconnect(true);
     return;
   }
