@@ -46,6 +46,10 @@ async function main() {
     await once(a, "connect");
     await once(b, "connect");
 
+    // Invalid payloads must be rejected without creating a room membership.
+    const invalidJoin = await new Promise((r) => a.emit("join", [], r));
+    if (invalidJoin.ok !== false) throw new Error("array join payload was not rejected");
+
     // join
     const joinedA = await new Promise((r) =>
       a.emit("join", { name: "alice", room: "lobby" }, r)
