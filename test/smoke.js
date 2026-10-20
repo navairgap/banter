@@ -77,6 +77,14 @@ async function main() {
       throw new Error("message payload wrong: " + JSON.stringify(msg));
     }
 
+    // Non-string message payloads must not be relayed.
+    const malformedNotArrive = once(b, "message", 500).then(
+      () => { throw new Error("object message payload was relayed"); },
+      () => "ignored-as-expected"
+    );
+    a.emit("message", { text: "spoofed" });
+    await malformedNotArrive;
+
     // oversized message is rejected (silently dropped)
     const shouldNotArrive = once(b, "message", 500).then(
       () => {
