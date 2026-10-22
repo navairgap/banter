@@ -191,3 +191,8 @@ behind nginx: one location block with `proxy_pass http://127.0.0.1:PORT` and the
 ## History
 
 the first real websockets project and the first with CI-guarded integration tests. the zero-history design was the constraint that made everything else obvious.
+
+
+## Message validation
+
+Treat client event payloads as untrusted. Validate types and lengths before broadcasting, derive sender identity from server-side socket state, and ensure rejected payloads are not relayed to other room members.
