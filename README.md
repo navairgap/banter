@@ -196,3 +196,8 @@ the first real websockets project and the first with CI-guarded integration test
 ## Message validation
 
 Treat client event payloads as untrusted. Validate types and lengths before broadcasting, derive sender identity from server-side socket state, and ensure rejected payloads are not relayed to other room members.
+
+
+## Maintenance and verification notes
+
+Add a concise release checklist: validate message payloads, test rejected messages are not broadcast, verify room membership on disconnect, and check error paths without logging private chat contents.
