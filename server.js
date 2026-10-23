@@ -119,6 +119,11 @@ io.on("connection", (socket) => {
       return;
     }
     const { name, room } = payload;
+    if ((name != null && typeof name !== "string") ||
+        (room != null && typeof room !== "string")) {
+      if (typeof ack === "function") ack({ ok: false, error: "name and room must be strings" });
+      return;
+    }
     if (!allowEvent(socket.id, "join", 10, 60_000)) {
       if (typeof ack === "function") ack({ ok: false, error: "too many join attempts" });
       return;
