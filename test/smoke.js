@@ -50,6 +50,15 @@ async function main() {
     const invalidJoin = await new Promise((r) => a.emit("join", [], r));
     if (invalidJoin.ok !== false) throw new Error("array join payload was not rejected");
 
+    const invalidName = await new Promise((r) =>
+      a.emit("join", { name: { nested: true }, room: "lobby" }, r)
+    );
+    if (invalidName.ok !== false) throw new Error("object nickname was not rejected");
+    const invalidRoom = await new Promise((r) =>
+      a.emit("join", { name: "alice", room: ["lobby"] }, r)
+    );
+    if (invalidRoom.ok !== false) throw new Error("array room name was not rejected");
+
     // join
     const joinedA = await new Promise((r) =>
       a.emit("join", { name: "alice", room: "lobby" }, r)
