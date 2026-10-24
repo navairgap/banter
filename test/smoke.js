@@ -118,6 +118,13 @@ async function main() {
       throw new Error("room slug wrong: " + newRoom.room);
     }
 
+    const invalidRoomType = await new Promise((r) =>
+      a.emit("new room", { room: "not-a-string" }, r)
+    );
+    if (invalidRoomType.ok !== false) {
+      throw new Error("non-string room creation payload was accepted");
+    }
+
     // room-switch rename: c joins tech as "alice", then a switches to tech
     // and must be renamed by the server (ack carries the new name)
     const c = client();
