@@ -104,6 +104,13 @@ async function main() {
     a.emit("message", "x".repeat(600));
     await shouldNotArrive;
 
+    const whitespaceNotArrive = once(b, "message", 500).then(
+      () => { throw new Error("whitespace-only message was relayed"); },
+      () => "ignored-as-expected"
+    );
+    a.emit("message", "   \n\t ");
+    await whitespaceNotArrive;
+
     // typing indicator
     const gotTyping = once(b, "typing");
     a.emit("typing", true);
