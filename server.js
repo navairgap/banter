@@ -158,7 +158,8 @@ io.on("connection", (socket) => {
   socket.on("typing", (isTyping) => {
     const u = users.get(socket.id);
     if (!u || !allowEvent(socket.id, "typing", MAX_TYPING_EVENTS_PER_WINDOW)) return;
-    socket.to(u.room).emit("typing", { user: u.name, isTyping: !!isTyping });
+    if (typeof isTyping !== "boolean") return;
+    socket.to(u.room).emit("typing", { user: u.name, isTyping });
   });
 
   // create a room and return its name so the client can join it
