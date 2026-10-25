@@ -91,6 +91,13 @@ async function main() {
       throw new Error("message payload wrong: " + JSON.stringify(msg));
     }
 
+    const unicodeMessage = once(b, "message");
+    a.emit("message", "नमस्ते 👋 café");
+    const unicodeMsg = await unicodeMessage;
+    if (unicodeMsg.text !== "नमस्ते 👋 café") {
+      throw new Error("Unicode message was not preserved");
+    }
+
     // Non-string message payloads must not be relayed.
     const malformedNotArrive = once(b, "message", 500).then(
       () => { throw new Error("object message payload was relayed"); },
