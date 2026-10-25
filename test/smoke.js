@@ -119,6 +119,13 @@ async function main() {
       throw new Error("typing payload wrong: " + JSON.stringify(typing));
     }
 
+    const malformedTypingNotArrive = once(b, "typing", 500).then(
+      () => { throw new Error("non-boolean typing payload was relayed"); },
+      () => "ignored-as-expected"
+    );
+    a.emit("typing", { isTyping: true });
+    await malformedTypingNotArrive;
+
     // room creation
     const newRoom = await new Promise((r) => a.emit("new room", "Test Room", r));
     if (newRoom.room !== "test-room") {
