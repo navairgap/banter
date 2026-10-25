@@ -41,6 +41,11 @@ async function main() {
   try {
     await new Promise((r) => setTimeout(r, 700)); // let it bind
 
+    const health = await fetch(`${URL}/healthz`);
+    if (!health.ok || JSON.stringify(await health.json()) !== JSON.stringify({ ok: true })) {
+      throw new Error("health endpoint did not return its expected status");
+    }
+
     a = client();
     b = client();
     await once(a, "connect");
