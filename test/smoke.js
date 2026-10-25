@@ -98,6 +98,13 @@ async function main() {
       throw new Error("Unicode message was not preserved");
     }
 
+    const maxLengthMessage = once(b, "message");
+    a.emit("message", "m".repeat(500));
+    const maxLengthMsg = await maxLengthMessage;
+    if (maxLengthMsg.text.length !== 500) {
+      throw new Error("maximum-length valid message was changed or rejected");
+    }
+
     // Non-string message payloads must not be relayed.
     const malformedNotArrive = once(b, "message", 500).then(
       () => { throw new Error("object message payload was relayed"); },
