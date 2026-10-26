@@ -151,6 +151,13 @@ async function main() {
       throw new Error("room slug normalization wrong: " + newRoom.room);
     }
 
+    const slugJoin = await new Promise((r) =>
+      a.emit("join", { name: "alice", room: "QA !!! Room" }, r)
+    );
+    if (!slugJoin.ok || slugJoin.room !== "qa-room") {
+      throw new Error("join room slug normalization wrong: " + JSON.stringify(slugJoin));
+    }
+
     const invalidRoomType = await new Promise((r) =>
       a.emit("new room", { room: "not-a-string" }, r)
     );
