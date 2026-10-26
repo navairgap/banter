@@ -72,6 +72,12 @@ const now = () =>
 
 const clean = (s, max) => String(s ?? "").trim().replace(/\s+/g, " ").slice(0, max);
 
+const roomSlug = (value) => clean(value, MAX_ROOM_LEN).toLowerCase()
+  .replace(/\s+/g, "-")
+  .replace(/[^a-z0-9-]/g, "")
+  .replace(/-+/g, "-")
+  .replace(/^-|-$/g, "");
+
 function roomUsers(room) {
   const list = [];
   for (const u of users.values()) if (u.room === room) list.push(u.name);
@@ -129,7 +135,7 @@ io.on("connection", (socket) => {
       return;
     }
     let n = clean(name, MAX_NAME_LEN) || `guest-${guestSeq++}`;
-    let r = clean(room, MAX_ROOM_LEN).toLowerCase() || "lobby";
+    let r = roomSlug(room) || "lobby";
     if (!rooms.has(r) && rooms.size >= MAX_ROOMS) {
       if (typeof ack === "function") ack({ ok: false, error: "room limit reached" });
       return;
@@ -172,11 +178,7 @@ io.on("connection", (socket) => {
       if (typeof ack === "function") ack({ ok: false, error: "invalid room name" });
       return;
     }
-    const r = clean(room, MAX_ROOM_LEN).toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
+    const r = roomSlug(room);
     if (!r) {
       if (typeof ack === "function") ack({ ok: false, error: "invalid room name" });
       return;
