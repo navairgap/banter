@@ -83,6 +83,16 @@ async function main() {
       throw new Error("user list incomplete: " + JSON.stringify(list));
     }
 
+    const casedClient = client();
+    await once(casedClient, "connect");
+    const casedJoin = await new Promise((r) =>
+      casedClient.emit("join", { name: "ALICE", room: "lobby" }, r)
+    );
+    if (casedJoin.name !== "ALICE (3)") {
+      throw new Error("case-insensitive duplicate-name handling failed: " + casedJoin.name);
+    }
+    casedClient.close();
+
     // b sees a's message
     const gotMsg = once(b, "message");
     a.emit("message", "hello from alice");
