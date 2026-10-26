@@ -146,9 +146,9 @@ async function main() {
     await malformedTypingNotArrive;
 
     // room creation
-    const newRoom = await new Promise((r) => a.emit("new room", "Test Room", r));
+    const newRoom = await new Promise((r) => a.emit("new room", "-- Test !!! Room --", r));
     if (newRoom.room !== "test-room") {
-      throw new Error("room slug wrong: " + newRoom.room);
+      throw new Error("room slug normalization wrong: " + newRoom.room);
     }
 
     const invalidRoomType = await new Promise((r) =>
