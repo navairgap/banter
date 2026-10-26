@@ -172,7 +172,11 @@ io.on("connection", (socket) => {
       if (typeof ack === "function") ack({ ok: false, error: "invalid room name" });
       return;
     }
-    const r = clean(room, MAX_ROOM_LEN).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const r = clean(room, MAX_ROOM_LEN).toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
     if (!r) {
       if (typeof ack === "function") ack({ ok: false, error: "invalid room name" });
       return;
