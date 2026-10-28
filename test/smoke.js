@@ -123,6 +123,15 @@ async function main() {
     a.emit("message", { text: "spoofed" });
     await malformedNotArrive;
 
+    for (const invalidPayload of [null, 42, false]) {
+      const invalidNotArrive = once(b, "message", 350).then(
+        () => { throw new Error("invalid primitive message payload was relayed"); },
+        () => "ignored-as-expected"
+      );
+      a.emit("message", invalidPayload);
+      await invalidNotArrive;
+    }
+
     // oversized message is rejected (silently dropped)
     const shouldNotArrive = once(b, "message", 500).then(
       () => {
