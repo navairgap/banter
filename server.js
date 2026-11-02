@@ -29,6 +29,17 @@ const io = new Server(server, {
   },
 });
 
+// Reduce framework disclosure and apply a small, consistent set of browser
+// hardening headers to both the app shell and static client assets.
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  next();
+});
+
 // serve only client assets — never server.js, package.json, tests, etc.
 app.use("/styles", express.static(path.join(__dirname, "styles")));
 app.use("/js", express.static(path.join(__dirname, "js")));
