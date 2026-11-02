@@ -45,7 +45,7 @@ app.use("/styles", express.static(path.join(__dirname, "styles")));
 app.use("/js", express.static(path.join(__dirname, "js")));
 app.use("/docs", express.static(path.join(__dirname, "docs")));
 app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/healthz", (_req, res) => res.set("Cache-Control", "no-store").json({ ok: true }));
 
 const MAX_NAME_LEN = 20;
 const MAX_MSG_LEN = 500;
