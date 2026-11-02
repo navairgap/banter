@@ -46,6 +46,21 @@ async function main() {
       throw new Error("health endpoint did not return its expected status");
     }
 
+    for (const [header, expected] of Object.entries({
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": "DENY",
+      "cross-origin-resource-policy": "same-origin",
+      "cache-control": "no-store",
+    })) {
+      if (health.headers.get(header) !== expected) {
+        throw new Error(`health response header ${header} was not ${expected}`);
+      }
+    }
+    if (health.headers.has("x-powered-by")) {
+      throw new Error("Express framework header should not be exposed");
+    }
+
     a = client();
     b = client();
     await once(a, "connect");
