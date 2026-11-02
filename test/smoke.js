@@ -61,6 +61,14 @@ async function main() {
       throw new Error("Express framework header should not be exposed");
     }
 
+    const crossOrigin = io(URL, {
+      transports: ["websocket"],
+      forceNew: true,
+      extraHeaders: { Origin: "https://attacker.example" },
+    });
+    await once(crossOrigin, "connect_error");
+    crossOrigin.close();
+
     a = client();
     b = client();
     await once(a, "connect");
