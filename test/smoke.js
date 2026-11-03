@@ -74,6 +74,12 @@ async function main() {
     await once(a, "connect");
     await once(b, "connect");
 
+    // A connected socket must join before it can allocate a persistent room.
+    const orphanRoom = await new Promise((r) => a.emit("new room", "orphan-room", r));
+    if (orphanRoom.ok !== false || orphanRoom.error !== "join a room first") {
+      throw new Error("unjoined socket was allowed to create a room");
+    }
+
     // Invalid payloads must be rejected without creating a room membership.
     const invalidJoin = await new Promise((r) => a.emit("join", [], r));
     if (invalidJoin.ok !== false) throw new Error("array join payload was not rejected");
