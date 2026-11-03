@@ -181,6 +181,10 @@ io.on("connection", (socket) => {
 
   // create a room and return its name so the client can join it
   socket.on("new room", (room, ack) => {
+    if (!users.has(socket.id)) {
+      if (typeof ack === "function") ack({ ok: false, error: "join a room first" });
+      return;
+    }
     if (!allowEvent(socket.id, "new-room", 5, 60_000)) {
       if (typeof ack === "function") ack({ ok: false, error: "too many room creation attempts" });
       return;
