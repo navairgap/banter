@@ -235,6 +235,20 @@ async function main() {
     const back = await new Promise((r) => a.emit("join", { name: "alice", room: "lobby" }, r));
     if (back.name !== "alice") throw new Error("rejoin failed: " + back.name);
 
+    // Duplicate suffixes must not push nicknames beyond the documented limit.
+    const longBase = "abcdefghijklmnopqrst";
+    const longA = await new Promise((r) =>
+      a.emit("join", { name: longBase, room: "limit-name" }, r)
+    );
+    const longB = await new Promise((r) =>
+      b.emit("join", { name: longBase, room: "limit-name" }, r)
+    );
+    if (longA.name !== longBase || longB.name.length > 20 ||
+        longB.name.toLowerCase() === longA.name.toLowerCase() ||
+        !longB.name.endsWith(" (2)")) {
+      throw new Error("duplicate long nicknames must remain unique and at most 20 characters");
+    }
+
     // disconnect cleanup: b leaves the user list
     const afterLeave = once(a, "users");
     b.disconnect();
