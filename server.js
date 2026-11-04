@@ -103,8 +103,12 @@ function uniqueName(base, room) {
   );
   if (!taken.has(base.toLowerCase())) return base;
   let i = 2;
-  while (taken.has(`${base} (${i})`.toLowerCase())) i += 1;
-  return `${base} (${i})`;
+  while (true) {
+    const suffix = ` (${i})`;
+    const candidate = `${base.slice(0, MAX_NAME_LEN - suffix.length)}${suffix}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+    i += 1;
+  }
 }
 
 function leaveCurrentRoom(socket) {
