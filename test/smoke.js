@@ -218,6 +218,29 @@ async function main() {
       throw new Error("room name with no valid slug was accepted");
     }
 
+    // Unjoined room reservations are removed when their creator disconnects.
+    const roomCreator = client();
+    await once(roomCreator, "connect");
+    const creatorJoin = await new Promise((r) =>
+      roomCreator.emit("join", { name: "room-owner", room: "lobby" }, r)
+    );
+    if (!creatorJoin.ok) throw new Error("room creator could not join lobby");
+    const roomAppears = once(b, "rooms");
+    const reservation = await new Promise((r) =>
+      roomCreator.emit("new room", "abandoned-room", r)
+    );
+    if (!reservation.ok) throw new Error("room reservation failed");
+    const roomsWithReservation = await roomAppears;
+    if (!roomsWithReservation.includes("abandoned-room")) {
+      throw new Error("new room was not announced");
+    }
+    const roomDisappears = once(b, "rooms");
+    roomCreator.disconnect();
+    const roomsAfterDisconnect = await roomDisappears;
+    if (roomsAfterDisconnect.includes("abandoned-room")) {
+      throw new Error("unjoined room reservation survived creator disconnect");
+    }
+
     // room-switch rename: c joins tech as "alice", then a switches to tech
     // and must be renamed by the server (ack carries the new name)
     const c = client();

@@ -59,6 +59,7 @@ const MAX_CONNECTIONS_PER_IP = 20;
 const MAX_CONNECTIONS = 1000;
 const connectionsByIp = new Map();
 const eventCounts = new Map();
+const pendingRoomsByCreator = new Map();
 
 function allowEvent(socketId, event, limit, windowMs = EVENT_WINDOW_MS) {
   const nowMs = Date.now();
@@ -156,6 +157,11 @@ io.on("connection", (socket) => {
       return;
     }
     leaveCurrentRoom(socket);
+    const pendingRooms = pendingRoomsByCreator.get(socket.id);
+    if (pendingRooms) {
+      pendingRooms.delete(r);
+      if (pendingRooms.size === 0) pendingRoomsByCreator.delete(socket.id);
+    }
     n = uniqueName(n, r);
     users.set(socket.id, { name: n, room: r });
     socket.join(r);
@@ -208,6 +214,9 @@ io.on("connection", (socket) => {
         return;
       }
       rooms.add(r);
+      const pending = pendingRoomsByCreator.get(socket.id) || new Set();
+      pending.add(r);
+      pendingRoomsByCreator.set(socket.id, pending);
       io.emit("rooms", [...rooms].sort());
     }
     if (typeof ack === "function") ack({ ok: true, room: r });
@@ -215,6 +224,17 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     leaveCurrentRoom(socket);
+    const pending = pendingRoomsByCreator.get(socket.id);
+    let removedEmptyRoom = false;
+    if (pending) {
+      for (const room of pending) {
+        if (roomUsers(room).length === 0 && rooms.delete(room)) {
+          removedEmptyRoom = true;
+        }
+      }
+      pendingRoomsByCreator.delete(socket.id);
+    }
+    if (removedEmptyRoom) io.emit("rooms", [...rooms].sort());
     const remaining = Math.max(0, (connectionsByIp.get(ip) || 1) - 1);
     if (remaining === 0) connectionsByIp.delete(ip);
     else connectionsByIp.set(ip, remaining);
