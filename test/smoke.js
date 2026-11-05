@@ -241,6 +241,36 @@ async function main() {
       throw new Error("unjoined room reservation survived creator disconnect");
     }
 
+    // Multiple clients may reserve the same empty room before anyone joins it.
+    const secondCreator = client();
+    await once(secondCreator, "connect");
+    const secondJoin = await new Promise((r) =>
+      secondCreator.emit("join", { name: "room-owner-two", room: "lobby" }, r)
+    );
+    if (!secondJoin.ok) throw new Error("second room creator could not join lobby");
+    const firstReservation = await new Promise((r) =>
+      roomCreator.emit("new room", "shared-pending-room", r)
+    );
+    const secondReservation = await new Promise((r) =>
+      secondCreator.emit("new room", "shared-pending-room", r)
+    );
+    if (!firstReservation.ok || !secondReservation.ok) {
+      throw new Error("shared room reservation failed");
+    }
+    roomCreator.disconnect();
+    const roomsRefresh = once(b, "rooms");
+    b.emit("join", { name: "alice", room: "lobby" });
+    const roomsAfterFirstCreator = await roomsRefresh;
+    if (!roomsAfterFirstCreator.includes("shared-pending-room")) {
+      throw new Error("one creator disconnect removed another creator's reservation");
+    }
+    const sharedRoomDisappears = once(b, "rooms");
+    secondCreator.disconnect();
+    const roomsAfterLastCreator = await sharedRoomDisappears;
+    if (roomsAfterLastCreator.includes("shared-pending-room")) {
+      throw new Error("shared empty room survived the last creator disconnect");
+    }
+
     // room-switch rename: c joins tech as "alice", then a switches to tech
     // and must be renamed by the server (ack carries the new name)
     const c = client();

@@ -157,10 +157,10 @@ io.on("connection", (socket) => {
       return;
     }
     leaveCurrentRoom(socket);
-    const pendingRooms = pendingRoomsByCreator.get(socket.id);
-    if (pendingRooms) {
-      pendingRooms.delete(r);
-      if (pendingRooms.size === 0) pendingRoomsByCreator.delete(socket.id);
+    // Once a user joins a room it is no longer an unclaimed reservation.
+    for (const [creator, pending] of pendingRoomsByCreator) {
+      pending.delete(r);
+      if (pending.size === 0) pendingRoomsByCreator.delete(creator);
     }
     n = uniqueName(n, r);
     users.set(socket.id, { name: n, room: r });
@@ -214,10 +214,12 @@ io.on("connection", (socket) => {
         return;
       }
       rooms.add(r);
+      io.emit("rooms", [...rooms].sort());
+    }
+    if (!["lobby", "tech", "random"].includes(r) && roomUsers(r).length === 0) {
       const pending = pendingRoomsByCreator.get(socket.id) || new Set();
       pending.add(r);
       pendingRoomsByCreator.set(socket.id, pending);
-      io.emit("rooms", [...rooms].sort());
     }
     if (typeof ack === "function") ack({ ok: true, room: r });
   });
@@ -227,12 +229,14 @@ io.on("connection", (socket) => {
     const pending = pendingRoomsByCreator.get(socket.id);
     let removedEmptyRoom = false;
     if (pending) {
+      pendingRoomsByCreator.delete(socket.id);
       for (const room of pending) {
-        if (roomUsers(room).length === 0 && rooms.delete(room)) {
+        const stillReserved = [...pendingRoomsByCreator.values()]
+          .some((otherPending) => otherPending.has(room));
+        if (!stillReserved && roomUsers(room).length === 0 && rooms.delete(room)) {
           removedEmptyRoom = true;
         }
       }
-      pendingRoomsByCreator.delete(socket.id);
     }
     if (removedEmptyRoom) io.emit("rooms", [...rooms].sort());
     const remaining = Math.max(0, (connectionsByIp.get(ip) || 1) - 1);
