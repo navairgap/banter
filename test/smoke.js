@@ -242,6 +242,12 @@ async function main() {
     }
 
     // Multiple clients may reserve the same empty room before anyone joins it.
+    const firstSharedCreator = client();
+    await once(firstSharedCreator, "connect");
+    const firstSharedJoin = await new Promise((r) =>
+      firstSharedCreator.emit("join", { name: "room-owner-one", room: "lobby" }, r)
+    );
+    if (!firstSharedJoin.ok) throw new Error("first shared-room creator could not join lobby");
     const secondCreator = client();
     await once(secondCreator, "connect");
     const secondJoin = await new Promise((r) =>
@@ -249,7 +255,7 @@ async function main() {
     );
     if (!secondJoin.ok) throw new Error("second room creator could not join lobby");
     const firstReservation = await new Promise((r) =>
-      roomCreator.emit("new room", "shared-pending-room", r)
+      firstSharedCreator.emit("new room", "shared-pending-room", r)
     );
     const secondReservation = await new Promise((r) =>
       secondCreator.emit("new room", "shared-pending-room", r)
@@ -257,7 +263,7 @@ async function main() {
     if (!firstReservation.ok || !secondReservation.ok) {
       throw new Error("shared room reservation failed");
     }
-    roomCreator.disconnect();
+    firstSharedCreator.disconnect();
     const roomsRefresh = once(b, "rooms");
     b.emit("join", { name: "alice", room: "lobby" });
     const roomsAfterFirstCreator = await roomsRefresh;
