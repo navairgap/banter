@@ -1,66 +1,39 @@
-# socket event contract (v2)
+# socket event contract (v3)
 
 Validate every Socket.IO payload as untrusted input. Check payload types
-and required fields before accessing nested values. Derive sender identity
-from server-side socket state rather than client-supplied usernames.
-Rejected payloads must never be broadcast.
+and required fields before accessing nested values. Rejected payloads must
+never broadcast, never mutate state, and never consume rate-limit quota
+(validation runs before the limiter).
 
-## Wire format v2
+Sessions are identified by `socket.handshake.auth.sessionId` (8–64 chars,
+`[a-zA-Z0-9_-]`). Conversations are namespaced per session; one session can
+never read or open another session's conversations.
 
-- Timestamps are epoch milliseconds in a `ts` field. The client formats
-  them with its own locale and timezone; the server never renders time.
-- The `rooms` event carries `{ name, count }[]` sorted by name — member
-  counts are part of the roster broadcast, computed in one pass.
-- The `users` event carries `string[]` — server-unique nicknames within
-  the room, sorted case-insensitively.
+## Events
 
-## Acknowledgement and delivery guarantees
+| Event          | Direction | Payload                         | Ack |
+|----------------|-----------|----------------------------------|-----|
+| `conv:list`    | C → S     | none or `null`                   | `{ ok, conversations }` — handler accepts both arities |
+| `conv:create`  | C → S     | `{ title? }`                     | `{ ok, conversation }` |
+| `conv:open`    | C → S     | `{ id }`                         | `{ ok, conversation, messages }` / `{ ok: false }` |
+| `conv:delete`  | C → S     | `{ id }`                         | `{ ok }`; aborts an in-flight generation |
+| `conv:skills`  | C → S     | `{ id, skills: string[] }`       | `{ ok, skills }`; unknown skill names are dropped |
+| `chat:send`    | C → S     | `{ conversationId, text }`       | `{ ok, userMessage, conversation }` or `{ ok: false, error }` |
+| `chat:stop`    | C → S     | `{ conversationId }`             | none — aborts the generation |
+| `chat:delta`   | S → C     | `{ conversationId, text }`       | streamed token |
+| `chat:done`    | S → C     | `{ conversationId, conversation, aborted? }` | generation finished |
+| `chat:error`   | S → C     | `{ conversationId, error }`      | generation failed; nothing broadcast |
 
-| Event      | Acknowledges                                    |
-|------------|--------------------------------------------------|
-| `join`     | validation failure, rate limit, room limit, success (`{ ok, name, room }` with the server-resolved nickname) |
-| `message`  | validation failure, rate limit, success          |
-| `typing`   | success only; invalid payloads are dropped silently (fire-and-forget) |
-| `new room` | "join first", validation failure, rate limit, room limit, success |
+## Guarantees
 
-Never send both a success acknowledgement and a failure-shaped payload
-for the same request. A dropped (unacknowledged) event is a contract
-violation except for `typing` with an invalid payload.
-
-Validation happens **before** the rate limiter on every event: garbage
-must not consume a client's quota. The rate limiter still runs before any
-broadcast or state mutation.
-
-## Room lifecycle and reconnect behavior
-
-A socket belongs to at most one room at a time. Switching rooms must
-remove the previous membership before adding the new one, and disconnect
-must clear the server-side user record, per-socket rate-limit counters,
-and any empty non-default room (respecting other creators' pending
-reservations).
-
-Re-joining the room a socket already occupies — same room, same resolved
-nickname — is a silent no-op: success ack, no `system` broadcast, no
-roster churn. This is what makes client reconnects invisible.
-
-A reconnect is a new socket identity: no username or room is restored
-server-side; the *client* re-emits `join` with its current desired state,
-which is also how a mid-session room switch survives a reconnect.
-Integration tests should assert that disconnected users disappear from
-room lists and cannot receive later broadcasts.
-
-## Room reservations
-
-`new room` reserves an empty non-default room for its creator. Multiple
-creators may share one reservation; a reservation only disappears when
-its last creator disconnects without joining, or when anyone joins the
-room. Default rooms (lobby, tech, random) are never reserved and never
-deleted.
-
-## Shutdown
-
-SIGTERM/SIGINT stop accepting connections, disconnect every socket with a
-proper socket.io disconnect packet (clients reconnect cleanly if the
-process comes back), close the listener, drop idle keep-alive HTTP
-sockets, and exit 0. A force timer bounds the drain. Integration tests
-assert the client-visible disconnect and the exit request.
+- One generation per conversation at a time; a second `chat:send` while
+  generating is rejected with `already generating`.
+- `chat:send` validates payload shape, text length (8000 chars), and
+  provider readiness (API key + model) before mutating the conversation.
+  The user message is stored before streaming starts; the assistant message
+  is stored only if it has content (aborted partial replies count).
+- An acked `chat:send` is followed by exactly one of `chat:done` or
+  `chat:error` on the same socket.
+- REST settings endpoints never return API keys — only `apiKeySet`.
+- Installed skills must parse as SKILL.md with a valid name; unknown names
+  in `conv:skills` are silently dropped.

@@ -1,18 +1,15 @@
 <p align="center">
-  <img src="docs/ascii-hero.gif" alt="banter — real-time public chat rooms, in ASCII" width="720">
-</p>
-
-<p align="center">
   <a href="https://github.com/navairgap/banter/actions/workflows/ci.yml"><img src="https://github.com/navairgap/banter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg" alt="Node 18+">
+  <img src="https://img.shields.io/badge/deps-express%20%2B%20socket.io-orange.svg" alt="Express + Socket.IO">
 </p>
 
-banter is a self-hosted, real-time public chat. Pick a nickname, join a
-room, talk. State lives in process memory and resets on restart — there
-are no accounts, no database, and no message history, so there is nothing
-to leak and nothing to migrate. The server is a single ~400-line file you
-can read in one sitting.
+banter is a local-first AI chat harness. It runs on your machine, talks to
+any major model provider — or a local model — and ships with a library of
+preinstalled skills that change how the model responds. Conversations live
+in process memory, API keys live in a local file, and nothing is sent
+anywhere except to the provider you configure.
 
 ```bash
 git clone https://github.com/navairgap/banter.git
@@ -21,64 +18,74 @@ npm install
 npm start          # http://localhost:3000
 ```
 
-Node.js 18 or newer. For auto-reloading during development use `npm run dev`.
+Node.js 18 or newer. `npm run dev` watches for changes during development.
 
-## Features
+On first run, open Settings (the `b` button in the left rail), pick a
+provider, and paste an API key. Or select **Mock (no network)** to try the
+interface without any key.
 
-- Multiple public rooms; create more from the client. The sidebar shows a
-  live member count per room.
-- Live roster per room with join and leave notices, typing indicators, and
-  presence in the member panel.
-- Discord-style interface: server rail, channel sidebar, member list, and
-  flat messages grouped by author. Multiline input (Enter sends,
-  Shift+Enter adds a line).
-- Automatic http(s) link detection. All user content is rendered with
-  `textContent`; it cannot inject markup.
-- Delivery feedback: every send is acknowledged, and rejections (rate
-  limit, over-length) surface in the client instead of vanishing.
-- Reconnect handling: dropped clients re-join the room they were in, and
-  re-joining the current room produces no roster noise.
-- Unread counter in the tab title plus a "new messages" divider; message
-  DOM nodes are capped so long sessions stay bounded.
+## Providers
 
-Duplicate nicknames are resolved server-side (`alex`, `alex (2)`, …) and
-the client re-syncs its name on every join.
+One configuration covers hosted and local models. Keys are stored in
+`~/.banter/config.json` with owner-only permissions and are never returned
+by the API — the client only learns whether a key is present.
 
-<p align="center">
-  <img src="docs/chat-demo.gif" alt="banter chat — channels, grouped messages, member list" width="720">
-</p>
+| Provider | Type | Default base URL | Notes |
+|----------|------|------------------|-------|
+| OpenAI | hosted | `https://api.openai.com/v1` | |
+| Anthropic | hosted | `https://api.anthropic.com` | |
+| Google Gemini | hosted | `https://generativelanguage.googleapis.com` | |
+| Groq | hosted | `https://api.groq.com/openai/v1` | |
+| DeepSeek | hosted | `https://api.deepseek.com/v1` | |
+| Mistral | hosted | `https://api.mistral.ai/v1` | |
+| xAI Grok | hosted | `https://api.x.ai/v1` | |
+| OpenRouter | hosted | `https://openrouter.ai/api/v1` | routes to most models |
+| Ollama | local | `http://localhost:11434/v1` | no key needed |
+| LM Studio | local | `http://localhost:1234/v1` | no key needed |
+| Mock | offline | — | deterministic, for tests and demos |
 
-## Configuration
+Everything except Anthropic and Gemini uses the OpenAI-compatible
+protocol, so any endpoint that speaks it — vLLM, llama.cpp server,
+Together, or a self-hosted gateway — works through the same adapter.
 
-| Variable      | Default   | Meaning |
-|---------------|-----------|---------|
-| `PORT`        | `3000`    | Listen port |
-| `HOST`        | all interfaces | Bind address |
-| `TRUST_PROXY` | unset     | `1` = take the client IP from `X-Forwarded-For`. Enable only behind a proxy you control; the header is client-spoofable otherwise. |
-| `BENCH`       | unset     | `1` = lift the per-IP connection cap for local benchmarking. Never expose such a process. |
+Settings has a **Test & list models** button that validates the key
+against the provider and fills the model dropdown from its `/models`
+endpoint.
 
-## Wire protocol
+## Skills
 
-| Event      | Direction | Payload                  | Notes |
-|------------|-----------|--------------------------|-------|
-| `join`     | C → S     | `{ name, room }`         | ack `{ ok, name, room }`; `name` is server-resolved |
-| `message`  | C → S     | `text`                   | ack `{ ok }` / `{ ok: false, error }` |
-| `typing`   | C → S     | `boolean`                | fire-and-forget for invalid payloads |
-| `new room` | C → S     | `room`                   | ack `{ ok, room }` |
-| `message`  | S → C     | `{ user, text, ts }`     | `ts` is epoch milliseconds |
-| `system`   | S → C     | `{ text, ts }`           | join/leave notices |
-| `users`    | S → C     | `string[]`               | room roster |
-| `rooms`    | S → C     | `{ name, count }[]`      | all rooms with member counts |
-| `typing`   | S → C     | `{ user, isTyping }`     | |
+Skills are small instruction packs injected into a conversation's system
+prompt when you toggle them on. They use the `SKILL.md` format with
+frontmatter (`name`, `description`) and a markdown instruction body — the
+same format used by community skill repositories.
 
-The full contract — acknowledgement semantics, rate limits, room
-reservations, reconnect behavior, and shutdown — is specified in
-[docs/socket-event-contract.md](docs/socket-event-contract.md).
+Eight ship preinstalled: `code-review`, `debugging`, `explain-simply`,
+`writing-coach`, `summarize`, `regex-builder`, `sql-assistant`, and
+`skill-creator`.
 
-Server-side limits: nicknames 20 chars, messages 500 chars (rejected, not
-truncated), room names 24 chars, 100 rooms, 8 messages / 10 s / socket,
-20 connections per IP, 1000 connections total. Invalid payloads never
-broadcast and never consume rate-limit quota.
+The skill library dialog installs from any URL to a raw `SKILL.md` file
+(https, or http on localhost). Installed skills are stored in
+`~/.banter/skills/` and can be removed; installing a skill that shares a
+name with a built-in shadows it, and removing the copy restores the
+built-in.
+
+To write your own, enable the `skill-creator` skill and ask for a SKILL.md
+— it emits files that follow this harness's rules.
+
+## How it works
+
+```
+Browser (js/app.js) --socket.io--> server.js --fetch(stream)--> LLM provider
+                                        |
+                                 lib/providers   adapters + SSE parsing
+                                 lib/skills      SKILL.md loader + injection
+                                 lib/config      key storage (never leaves)
+```
+
+Streaming is token-by-token: the server relays provider deltas over the
+socket, the client renders plain text while streaming and re-renders
+markdown when the reply completes. A stop button aborts the provider
+request server-side.
 
 ## Testing
 
@@ -86,62 +93,65 @@ broadcast and never consume rate-limit quota.
 npm test
 ```
 
-The integration suite runs the real server in-process on a scratch port
-and drives socket.io clients over TCP: joins and renames, guest naming,
-roster counts, message acks and timestamps, Unicode and newlines, length
-limits, rate-limit quota semantics, room creation and reservations,
-silent same-room re-joins, disconnect cleanup, security headers, and the
-SIGTERM drain. CI runs it on Node 18 / 20 / 22 / 24 for every push and
-pull request.
+The integration suite runs the harness in-process on a scratch port with
+an isolated `BANTER_HOME` and drives real socket.io clients over TCP:
+config key-masking, skill install/remove/shadow semantics, provider
+request builders, mock-provider streaming, skill injection into the
+system prompt, validation limits, and per-session conversation isolation.
+CI runs it on Node 18 / 20 / 22 / 24 for every push and pull request.
 
-## Benchmarking
+## Configuration
 
-```bash
-npm run bench                        # 100 bots, 10 s
-npm run bench -- --clients 200 --duration 30
-```
+| Variable     | Default              | Meaning |
+|--------------|----------------------|---------|
+| `PORT`       | `3000`               | Listen port |
+| `HOST`       | all interfaces       | Bind address |
+| `BANTER_HOME`| `~/.banter`          | Config and installed skills directory |
+| `BANTER_ALLOW_PRIVATE_FETCH` | unset | `1` = allow model endpoints on your LAN (e.g. `http://192.168.x.x`). Loopback hosts (localhost, 127.0.0.1) are always allowed; all other fetch targets are DNS-checked and must resolve to public addresses. |
 
-Reports message round-trip percentiles (p50 / p95 / p99). Local runs with
-100 loopback clients sit at single-digit to low-double-digit milliseconds.
+Server-side limits: messages 8000 chars, 200 messages per conversation,
+50 conversations per session, 30-message context window sent to the
+model. `GET /healthz` returns `{ ok, version, uptime, provider }`.
 
-## Deployment
+SIGTERM and SIGINT drain the server: abort in-flight generations, close
+sockets, exit 0.
 
-`npm start` is the whole deployment story — no build step, no external
-services. `GET /healthz` returns `{ ok, version, uptime, users, rooms }`
-for platform health checks. A `Procfile` is included for
-Heroku-family hosts.
+## Security model
 
-Behind nginx, proxy to the port and pass the websocket upgrade headers
-(`Upgrade`, `Connection`); without them clients fall back to
-long-polling. Set `TRUST_PROXY=1` only when the proxy is yours.
-
-SIGTERM and SIGINT drain the server: stop accepting, close sockets with
-proper disconnect packets, exit 0.
-
-One process comfortably holds a few thousand concurrent sockets. Beyond
-that, shard by room across instances — clients in the same room must
-share an instance.
+- API keys never leave the server; the config API returns only
+  `apiKeySet: true/false`.
+- All user and model content is rendered with `textContent`; model
+  markdown is rebuilt from a DOM whitelist, never `innerHTML`.
+- Skill installs are https-only (http allowed on loopback), capped at
+  256 KB, with a 10-second timeout.
+- Same-origin checks on the socket handshake; CSP with `script-src 'self'`
+  on every response.
+- Conversations are in-memory and scoped to a random per-browser session
+  id; a restart wipes them.
 
 ## Project layout
 
 ```
-server.js          HTTP + Socket.IO server, in-memory state, /healthz
-index.html         app shell: join screen, rail, channels, members panel
+server.js          HTTP + Socket.IO harness: conversations, streaming, APIs
+lib/providers.js   OpenAI-compatible / Anthropic / Gemini / mock adapters
+lib/skills.js      SKILL.md loader, system-prompt builder, installer
+lib/config.js      provider settings and key storage (~/.banter)
+skills/            preinstalled skills (code-review, debugging, …)
+index.html         app shell: rail, conversations, chat, skills panel
 styles/main.css    dark theme, responsive layout
-js/app.js          client: rendering, socket wiring, typing, unread state
+js/app.js          client: conversations, streaming, markdown-lite, dialogs
 test/smoke.js      in-process integration suite
-scripts/bench.js   load benchmark
-docs/              wire contract, validation cases, README artwork
+docs/              wire contract, validation cases
 ```
 
 ## Scope and non-goals
 
-- No persistence by design. A restart empties rooms; this is the feature.
-- No private messages, no roles, no history replay.
-- No end-to-end encryption — the model assumes you operate the server you
-  trust. For that guarantee, use Matrix.
-- Anonymous nicknames are not authentication. Do not run sensitive
-  conversations on a public deployment.
+- No persistence by design: conversations reset on restart.
+- No multi-user relay — this is a single-operator local tool; each browser
+  session is isolated.
+- No tool execution, shell access, or file editing yet. The harness talks
+  to models; it does not act on your machine.
+- No telemetry, no accounts, no database.
 
 ## License
 

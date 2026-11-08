@@ -1,5 +1,39 @@
 # Changelog
 
+## 3.0.0 — 2026-11-09
+
+The project pivots from a public chat room to a local AI chat harness.
+Not compatible with 2.x clients.
+
+### Added
+
+- Multi-provider LLM layer with streaming: OpenAI-compatible endpoints
+  (OpenAI, Groq, DeepSeek, Mistral, xAI, OpenRouter, Ollama, LM Studio),
+  Anthropic, Google Gemini, and an offline mock provider.
+- Provider settings UI with API-key storage in `~/.banter/config.json`
+  (owner-only file, keys never returned by the API) and a
+  "Test & list models" check.
+- Skill system using the SKILL.md format: eight preinstalled skills,
+  per-conversation toggles that inject into the system prompt, installs
+  from a raw SKILL.md URL, and user-skill removal with built-in shadowing.
+- Conversations: create, open, auto-title from the first message, delete,
+  isolated per browser session.
+- Token-by-token streaming with a server-side stop (AbortController).
+- Safe markdown rendering for model replies (fences, lists, bold, inline
+  code, links).
+
+### Removed
+
+- Public rooms, nicknames, and user-to-user relay; the harness is a
+  single-operator tool with per-session isolation.
+- The rooms-based benchmark script.
+
+### Changed
+
+- `chat:send` replaces `message`; all chat events acknowledge or stream.
+- `BANTER_HOME` (default `~/.banter`) holds config and installed skills.
+- Health endpoint reports the active provider instead of room stats.
+
 ## 2.0.0 — 2026-11-09
 
 Wire protocol v2. Not backwards compatible with 1.x clients.
@@ -32,6 +66,15 @@ Wire protocol v2. Not backwards compatible with 1.x clients.
 - "New messages" pill and unread title counter; DOM is capped at 350 message
   nodes for long sessions.
 - Reconnects re-join the current room instead of the originally joined one.
+
+### Security
+
+- Server-side fetches (chat, model test, skill installs) validate the
+  target: http(s) only, no embedded credentials, and DNS resolution must
+  be public — private/intranet addresses are rejected unless the host is
+  literal loopback or `BANTER_ALLOW_PRIVATE_FETCH=1` is set.
+- Skill paths are proven to be direct children of the skills directory
+  before any write or delete.
 
 ### Project
 
