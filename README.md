@@ -1,77 +1,84 @@
 <p align="center">
-  <img src="docs/ascii-hero.gif" alt="banter — real-time public chat rooms, in ASCII" width="780">
+  <img src="docs/ascii-hero.gif" alt="banter — real-time public chat rooms, in ASCII" width="720">
 </p>
 
 <p align="center">
-  <img src="docs/chat-demo.gif" alt="banter chat demo — rooms, bubbles, typing indicator" width="760">
-</p>
-
-<p align="center">
-  <img src="https://github.com/navairgap/banter/actions/workflows/ci.yml/badge.svg" alt="CI">
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT">
+  <a href="https://github.com/navairgap/banter/actions/workflows/ci.yml"><img src="https://github.com/navairgap/banter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg" alt="Node 18+">
-  <img src="https://img.shields.io/badge/deps-express%20%2B%20socket.io-orange.svg" alt="Express + Socket.IO">
-  <img src="https://img.shields.io/badge/accounts-none-purple.svg" alt="No accounts">
-  <img src="https://img.shields.io/badge/database-none-black.svg" alt="No database">
 </p>
 
-Pick a nickname, join a room, talk. **banter** is a real-time public chat
-app — no accounts, no database, no build step. Users and rooms live in
-server memory, so a restart wipes everything and nothing about you is
-ever stored.
-
-## Quick start
+banter is a self-hosted, real-time public chat. Pick a nickname, join a
+room, talk. State lives in process memory and resets on restart — there
+are no accounts, no database, and no message history, so there is nothing
+to leak and nothing to migrate. The server is a single ~400-line file you
+can read in one sitting.
 
 ```bash
 git clone https://github.com/navairgap/banter.git
 cd banter
 npm install
-npm start
+npm start          # http://localhost:3000
 ```
 
-Open **http://localhost:3000** in as many tabs as you like — each tab is
-another person in the room.
-
-Requires Node.js 18+.
+Node.js 18 or newer. For auto-reloading during development use `npm run dev`.
 
 ## Features
 
-- 💬 **Multiple public rooms** — lobby, tech, random… or create your own
-  with one click
-- 👀 **Live online list** per room, with join/leave notices
-- ✍️ **Typing indicators** — animated, with names
-- 🎨 **Duplicate nicknames handled** — two "alex" become `alex` and `alex (2)`, and the client re-syncs its name on every room switch
-- 📱 **Responsive** — sidebar collapses into a slide-in overlay on mobile
-- 🔔 **Unread counter** in the tab title when the window is hidden
-- 🔌 **Connection-aware** — status dot, input locks when disconnected
-- 🛡️ **XSS-proof by construction** — the client renders everything with
-  `textContent`; user input can never inject markup
+- Multiple public rooms; create more from the client. The sidebar shows a
+  live member count per room.
+- Live roster per room with join and leave notices, typing indicators, and
+  presence in the member panel.
+- Discord-style interface: server rail, channel sidebar, member list, and
+  flat messages grouped by author. Multiline input (Enter sends,
+  Shift+Enter adds a line).
+- Automatic http(s) link detection. All user content is rendered with
+  `textContent`; it cannot inject markup.
+- Delivery feedback: every send is acknowledged, and rejections (rate
+  limit, over-length) surface in the client instead of vanishing.
+- Reconnect handling: dropped clients re-join the room they were in, and
+  re-joining the current room produces no roster noise.
+- Unread counter in the tab title plus a "new messages" divider; message
+  DOM nodes are capped so long sessions stay bounded.
 
-## How it works
+Duplicate nicknames are resolved server-side (`alex`, `alex (2)`, …) and
+the client re-syncs its name on every join.
 
-```
-Browser (js/app.js) --socket.io--> server.js --broadcast--> room members
-```
+<p align="center">
+  <img src="docs/chat-demo.gif" alt="banter chat — channels, grouped messages, member list" width="720">
+</p>
 
-| Event     | Direction | Payload                  | Purpose              |
-|-----------|-----------|--------------------------|----------------------|
-| `join`    | client →  | `{ name, room }`         | join / switch room   |
-| `message` | client →  | `text`                   | send a message       |
-| `typing`  | client →  | `bool`                   | typing indicator     |
-| `new room`| client →  | `room`                   | create a room        |
-| `message` | → client  | `{ user, text, time }`   | incoming message     |
-| `system`  | → client  | `{ text, time }`         | join/leave notices   |
-| `users`   | → client  | `string[]`               | room's online list   |
-| `rooms`   | → client  | `string[]`               | all rooms            |
-| `typing`  | → client  | `{ user, isTyping }`     | who's typing         |
+## Configuration
 
-The `join` acknowledgement returns `{ ok, name, room }` — `name` is the
-server-resolved nickname (renamed on collision), and the client applies it
-on both the initial join and every room switch.
+| Variable      | Default   | Meaning |
+|---------------|-----------|---------|
+| `PORT`        | `3000`    | Listen port |
+| `HOST`        | all interfaces | Bind address |
+| `TRUST_PROXY` | unset     | `1` = take the client IP from `X-Forwarded-For`. Enable only behind a proxy you control; the header is client-spoofable otherwise. |
+| `BENCH`       | unset     | `1` = lift the per-IP connection cap for local benchmarking. Never expose such a process. |
 
-Limits: nicknames 20 chars, messages 500 chars (over-limit is rejected,
-not truncated), rooms 24 chars. Everything is trimmed and validated
-server-side.
+## Wire protocol
+
+| Event      | Direction | Payload                  | Notes |
+|------------|-----------|--------------------------|-------|
+| `join`     | C → S     | `{ name, room }`         | ack `{ ok, name, room }`; `name` is server-resolved |
+| `message`  | C → S     | `text`                   | ack `{ ok }` / `{ ok: false, error }` |
+| `typing`   | C → S     | `boolean`                | fire-and-forget for invalid payloads |
+| `new room` | C → S     | `room`                   | ack `{ ok, room }` |
+| `message`  | S → C     | `{ user, text, ts }`     | `ts` is epoch milliseconds |
+| `system`   | S → C     | `{ text, ts }`           | join/leave notices |
+| `users`    | S → C     | `string[]`               | room roster |
+| `rooms`    | S → C     | `{ name, count }[]`      | all rooms with member counts |
+| `typing`   | S → C     | `{ user, isTyping }`     | |
+
+The full contract — acknowledgement semantics, rate limits, room
+reservations, reconnect behavior, and shutdown — is specified in
+[docs/socket-event-contract.md](docs/socket-event-contract.md).
+
+Server-side limits: nicknames 20 chars, messages 500 chars (rejected, not
+truncated), room names 24 chars, 100 rooms, 8 messages / 10 s / socket,
+20 connections per IP, 1000 connections total. Invalid payloads never
+broadcast and never consume rate-limit quota.
 
 ## Testing
 
@@ -79,111 +86,63 @@ server-side.
 npm test
 ```
 
-Runs in CI on every push and pull request (Node 18 / 20 / 22) — see
-`.github/workflows/ci.yml`.
+The integration suite runs the real server in-process on a scratch port
+and drives socket.io clients over TCP: joins and renames, guest naming,
+roster counts, message acks and timestamps, Unicode and newlines, length
+limits, rate-limit quota semantics, room creation and reservations,
+silent same-room re-joins, disconnect cleanup, security headers, and the
+SIGTERM drain. CI runs it on Node 18 / 20 / 22 / 24 for every push and
+pull request.
 
-Boots the server on a scratch port, connects two real socket clients, and
-verifies joining, duplicate names (including collision on a mid-session
-room switch), user lists, messaging, length limits, typing events, room
-creation, and disconnect cleanup.
+## Benchmarking
 
-## Deploying
+```bash
+npm run bench                        # 100 bots, 10 s
+npm run bench -- --clients 200 --duration 30
+```
 
-Listens on `process.env.PORT` (default 3000), no build step, no external
-services. `GET /healthz` returns `{ "ok": true }` — point your platform's
-health check at it. Only client assets are served; server files are not
-exposed.
+Reports message round-trip percentiles (p50 / p95 / p99). Local runs with
+100 loopback clients sit at single-digit to low-double-digit milliseconds.
 
-- **Render / Railway / Fly.io** — start command `npm start`
-- **VPS** — `npm install && pm2 start server.js --name banter`
-- **Heroku-family** — `web: npm start` in a Procfile
+## Deployment
+
+`npm start` is the whole deployment story — no build step, no external
+services. `GET /healthz` returns `{ ok, version, uptime, users, rooms }`
+for platform health checks. A `Procfile` is included for
+Heroku-family hosts.
+
+Behind nginx, proxy to the port and pass the websocket upgrade headers
+(`Upgrade`, `Connection`); without them clients fall back to
+long-polling. Set `TRUST_PROXY=1` only when the proxy is yours.
+
+SIGTERM and SIGINT drain the server: stop accepting, close sockets with
+proper disconnect packets, exit 0.
+
+One process comfortably holds a few thousand concurrent sockets. Beyond
+that, shard by room across instances — clients in the same room must
+share an instance.
 
 ## Project layout
 
 ```
-server.js        Express + Socket.IO backend, in-memory state, /healthz
-index.html       join screen + chat screen markup
-styles/main.css  dark theme, animations, responsive layout
-js/app.js        client: rendering, socket events, typing, unread badge
-test/smoke.js    two-client integration test
-docs/            ASCII hero animation for this README
+server.js          HTTP + Socket.IO server, in-memory state, /healthz
+index.html         app shell: join screen, rail, channels, members panel
+styles/main.css    dark theme, responsive layout
+js/app.js          client: rendering, socket wiring, typing, unread state
+test/smoke.js      in-process integration suite
+scripts/bench.js   load benchmark
+docs/              wire contract, validation cases, README artwork
 ```
 
-## Honest limits
+## Scope and non-goals
 
-- In-memory only — restarting the server empties rooms and user lists
-- No message history — everything is relayed live, nothing is stored
-- Public chat, not private messaging: anonymous nicknames are not authentication; do not use this for sensitive conversations
-- Abuse controls: per-socket message/event throttles, a 100-room cap, per-IP connection caps, same-origin browser checks, and a 16 KB transport payload limit; distributed deployments still need shared limits at the proxy
+- No persistence by design. A restart empties rooms; this is the feature.
+- No private messages, no roles, no history replay.
+- No end-to-end encryption — the model assumes you operate the server you
+  trust. For that guarantee, use Matrix.
+- Anonymous nicknames are not authentication. Do not run sensitive
+  conversations on a public deployment.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
-
-
-## Architecture
-
-- `server.js` holds all in-memory state: rooms, users, typing indicators. Nothing touches disk.
-- `test/smoke.js` forks the server on a test port and drives two socket.io clients through join/message/rename/disconnect flows in CI.
-- Messages are relayed, never stored — reload and history is gone, by design.
-
-## Scaling limits
-
-Everything lives in process memory: expect comfortable performance to a few thousand concurrent sockets per instance. Beyond that, shard by room across instances — clients in the same room must share an instance. No persistence means restart = empty rooms, which is the point.
-
-
-## Operating notes
-
-- single instance per room shard; scale by sharding rooms across processes
-- no persistence is a feature: restarts clear state cleanly
-- put it behind your reverse proxy of choice for TLS
-
-
-## Comparison
-
-vs matrix/synapse: banter has no federation, no accounts, no database — and is ~200 lines you can read. vs a discord bot: it's a protocol, not a platform. pick it when zero-state matters more than features.
-
-
-## Troubleshooting
-
-rooms empty after restart? by design — no persistence. client connected but messages not arriving? check the room name matches exactly; typos make new rooms, silently.
-
-## Versioning
-
-no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
-
-
-## Message envelope
-
-every frame is one json object: `{"type":"msg","room":"lobby","user":"alice","payload":"hello"}`. types: join, leave, msg, typing, users. unknown types are ignored, never fatal — clients may drift a version ahead of the server.
-
-## Load notes
-
-one node process comfortably holds a few thousand concurrent sockets; beyond that, shard by room. rough local benchmark: `node bench.js --clients 500` spawns 500 bots and reports round-trip percentiles.
-
-## Non-goals
-
-no end-to-end encryption — the threat model assumes you run the server you trust; no history, no presence persistence, no typing replay. features that require state stay out by charter.
-
-## Signals
-
-SIGTERM drains: the server stops accepting, finishes in-flight relays, exits 0. SIGKILL mid-relay is invisible to clients — a reconnect covers it.
-
-## FAQ
-
-**why no end-to-end encryption?** the threat model assumes you operate the server you trust — E2E would protect messages from the server itself, which contradicts the design. for that model, use matrix.
-
-**why is there still no message history?** because 'no history' is the feature — it's what makes the server disposable.
-
-## Operations
-
-behind nginx: one location block with `proxy_pass http://127.0.0.1:PORT` and the websocket upgrade headers (`Upgrade`, `Connection`) — the client falls back to long-polling without them, so don't skip it.
-
-## History
-
-the first real websockets project and the first with CI-guarded integration tests. the zero-history design was the constraint that made everything else obvious.
-
-
-## Message validation
-
-Treat client event payloads as untrusted. Validate types and lengths before broadcasting, derive sender identity from server-side socket state, and ensure rejected payloads are not relayed to other room members.
+MIT — see [LICENSE](LICENSE).
