@@ -120,12 +120,6 @@ docs/            ASCII hero animation for this README
 
 MIT, see [LICENSE](LICENSE).
 
----
-maintained · verified 2026-09-30
----
-maintained · verified 2026-10-01
----
-maintained · verified 2026-10-02
 
 ## Architecture
 
@@ -158,9 +152,6 @@ rooms empty after restart? by design — no persistence. client connected but me
 
 no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
 
-## Versioning
-
-no semver — `main` is always runnable and the protocol is stable. tags mark protocol changes; if the wire format ever changes, it gets a tag and a migration note here.
 
 ## Message envelope
 
@@ -196,8 +187,3 @@ the first real websockets project and the first with CI-guarded integration test
 ## Message validation
 
 Treat client event payloads as untrusted. Validate types and lengths before broadcasting, derive sender identity from server-side socket state, and ensure rejected payloads are not relayed to other room members.
-
-
-## Maintenance and verification notes
-
-Add a concise release checklist: validate message payloads, test rejected messages are not broadcast, verify room membership on disconnect, and check error paths without logging private chat contents.
