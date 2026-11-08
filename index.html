@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="banter — real-time public chat rooms. No accounts, no history, no build step." />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#1e1f22" />
   <title>banter</title>
-  <link rel="stylesheet" href="styles/main.css" />
+  <link rel="stylesheet" href="styles/main.css?v=2.0.2" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
 </head>
 <body>
@@ -12,58 +15,108 @@
   <!-- Join screen -->
   <div id="join-screen" class="join-screen">
     <form id="join-form" class="join-card" autocomplete="off">
-      <h1><span class="logo-mark">banter</span></h1>
+      <h1>banter</h1>
       <p class="tagline">Public rooms. No accounts. Just talk.</p>
-      <label>
-        Nickname
-        <input id="name-input" maxlength="20" placeholder="e.g. naveen" required />
-      </label>
-      <label>
-        Room
-        <input id="room-input" list="room-options" maxlength="24" placeholder="lobby" />
-        <datalist id="room-options"></datalist>
-      </label>
-      <button type="submit">Join chat</button>
-      <p class="hint" id="join-hint"></p>
+      <label class="field-label" for="name-input">Nickname</label>
+      <input id="name-input" maxlength="20" placeholder="e.g. naveen" required />
+      <label class="field-label" for="room-input">Room</label>
+      <input id="room-input" list="room-options" maxlength="24" placeholder="lobby" />
+      <datalist id="room-options"></datalist>
+      <button type="submit" class="btn-blurple">Join chat</button>
+      <p class="hint" id="join-hint" role="alert"></p>
     </form>
   </div>
 
   <!-- Chat screen -->
   <div id="chat-screen" class="chat-screen hidden">
-    <header class="topbar">
-      <button id="sidebar-toggle" class="icon-btn" title="Rooms & people">☰</button>
-      <div class="room-title">
-        <h2 id="room-name">lobby</h2>
-        <span id="conn-dot" class="conn-dot" title="connecting…"></span>
-      </div>
-      <span id="online-count" class="online-count"></span>
-      <button id="leave-btn" class="ghost-btn">Leave</button>
-    </header>
+    <div class="app">
 
-    <div class="body">
+      <!-- Server rail -->
+      <nav class="rail" aria-label="Rooms">
+        <button id="rail-home" class="rail-item home" title="lobby">b</button>
+        <div class="rail-sep" aria-hidden="true"></div>
+        <div id="rail-rooms" class="rail-rooms"></div>
+        <button id="new-room-btn" class="rail-item add" title="Add a room" aria-label="Add a room">+</button>
+      </nav>
+
+      <!-- Channel sidebar -->
       <aside id="sidebar" class="sidebar">
-        <section>
-          <h3>Rooms <button id="new-room-btn" class="mini-btn">+ new</button></h3>
+        <div class="sidebar-header" id="sidebar-title">banter</div>
+        <div class="channels">
+          <div class="channels-label">Text channels</div>
           <ul id="room-list" class="room-list"></ul>
-        </section>
-        <section>
-          <h3>Online</h3>
-          <ul id="user-list" class="user-list"></ul>
-        </section>
+        </div>
+        <div class="user-panel">
+          <div class="avatar-wrap">
+            <div id="me-avatar" class="avatar"></div>
+            <span class="status-dot" id="me-status" aria-hidden="true"></span>
+          </div>
+          <div class="user-meta">
+            <span id="me-name" class="user-meta-name">…</span>
+            <span class="user-meta-status" id="conn-label">Connecting…</span>
+          </div>
+          <button id="leave-btn" class="panel-icon-btn" title="Leave" aria-label="Leave">⏻</button>
+        </div>
       </aside>
 
+      <!-- Chat area -->
       <main class="chat">
-        <div id="messages" class="messages"></div>
-        <div id="typing-bar" class="typing-bar hidden"><span class="dots"><i></i><i></i><i></i></span> <span id="typing-text"></span></div>
+        <header class="chat-header">
+          <button id="sidebar-toggle" class="icon-btn" title="Rooms &amp; people" aria-label="Toggle rooms and people">☰</button>
+          <span class="hash-icon" aria-hidden="true">#</span>
+          <h2 id="room-name">lobby</h2>
+          <span id="conn-dot" class="conn-dot" title="connecting…"></span>
+          <span id="online-count" class="online-count" aria-live="polite"></span>
+        </header>
+
+        <div class="chat-scroll">
+          <div id="channel-intro" class="channel-intro">
+            <div class="intro-hash" aria-hidden="true">#</div>
+            <h3>Welcome to <span id="intro-name">lobby</span>!</h3>
+            <p>This is the start of the <span id="intro-name-2">lobby</span> channel.</p>
+          </div>
+          <div id="messages" class="messages" role="log" aria-live="polite" aria-label="Messages"></div>
+          <button id="jump-pill" class="jump-pill hidden">New messages ↓</button>
+        </div>
+
         <form id="chat-form" class="chat-form" autocomplete="off">
-          <input id="msg-input" maxlength="500" placeholder="Message…" disabled />
-          <button type="submit" id="send-btn" disabled>Send</button>
+          <div class="input-wrap">
+            <button type="button" id="input-plus" class="plus-btn" title="Create a room" aria-label="Create a room">+</button>
+            <textarea id="msg-input" maxlength="500" rows="1" placeholder="Message…" aria-label="Message" enterkeyhint="send" disabled></textarea>
+            <span id="char-count" class="char-count" aria-hidden="true"></span>
+            <button type="submit" id="send-btn" class="send-btn" aria-label="Send" title="Send">
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 20.5 21.5 12 4 3.5 4 10l12 2-12 2z"/></svg>
+            </button>
+          </div>
         </form>
+        <div id="typing-bar" class="typing-bar hidden" aria-live="polite"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span> <span id="typing-text"></span></div>
       </main>
+
+      <!-- Member list -->
+      <aside class="members" id="members" aria-label="People online">
+        <h3 class="members-label">Online — <span id="members-count">0</span></h3>
+        <ul id="user-list" class="user-list"></ul>
+      </aside>
+
     </div>
   </div>
 
+  <!-- New room dialog -->
+  <dialog id="room-dialog" class="room-dialog">
+    <form id="room-dialog-form" autocomplete="off">
+      <h3>Create room</h3>
+      <label class="field-label" for="room-dialog-input">Room name</label>
+      <input id="room-dialog-input" maxlength="24" placeholder="e.g. movies" />
+      <menu>
+        <button type="button" id="room-dialog-cancel" class="btn-ghost">Cancel</button>
+        <button type="submit" id="room-dialog-create" class="btn-blurple">Create</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=2.0.2"></script>
 </body>
 </html>
