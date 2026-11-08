@@ -1,11 +1,14 @@
 {
   "name": "banter",
-  "version": "1.0.0",
-  "description": "banter \u2014 real-time public chat rooms with Socket.IO",
+  "version": "2.0.0",
+  "private": true,
+  "description": "banter — real-time public chat rooms with Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/smoke.js"
+    "dev": "node --watch server.js",
+    "test": "node test/smoke.js",
+    "bench": "node scripts/bench.js"
   },
   "engines": {
     "node": ">=18"
